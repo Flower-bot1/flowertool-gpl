@@ -290,7 +290,13 @@ def main() -> int:
                         format="%(levelname)s %(name)s: %(message)s")
     _preload()
     asyncio.run(Bridge(out).run(sys.stdin.buffer))
-    return 0
+    # ★收尾完直接結束、不走直譯器的收尾★:讀標準輸入的背景執行緒可能還卡在讀取、握著 stdin 的鎖,
+    #   直譯器收尾時去關 stdin 就會印「Fatal Python error: _enter_buffered_busy」(程式照樣結束,但記錄裡一段嚇人的錯;
+    #   實測 12 次有 7 次)。該送的回覆都已經送出、手機那邊也收好了,這裡不需要任何收尾。
+    with contextlib.suppress(Exception):
+        out.flush()
+        sys.stderr.flush()
+    os._exit(0)
 
 
 if __name__ == "__main__":
